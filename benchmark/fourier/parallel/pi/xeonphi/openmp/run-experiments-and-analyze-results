@@ -1,0 +1,97 @@
+#!/bin/bash
+
+# CS87 - Final Project
+# Maria-Elena Solano
+#
+# This SLURM job script runs the experiments for pi-DFT on the Xeon Phi
+# and analyzes the results.
+# 
+# To enqueue, execute
+#
+#   sbatch run-experiments-and-analyze-results;
+#
+
+
+# SLURM variables
+
+#SBATCH -J fourier-parallel-pi-xeonphi-openmp-experiments
+#SBATCH -o fourier-parallel-pi-xeonphi-openmp-results-analysis.out
+#SBATCH -p normal-mic
+#SBATCH -N 1
+#SBATCH -n 16
+#SBATCH -t 00:05:00
+#SBATCH -A TG-TRA100004
+
+
+# -------------------
+# Run the experiments
+# -------------------
+
+# Experimental parameters
+T=10;                                  # number of replications
+n_from=16384; n_to=131072;             # input size range
+p_from=1;     p_to=32;                 # processors range
+
+
+# If running this by mistake on a login node, stop
+if hostname | grep -q "login[0-9]*\.stampede"; then
+  echo -e "\x1B[1;31mError:\x1B[0m" \
+          "running on a login node! Run sbatch run-experiments instead.";
+  exit 1;
+fi
+
+# If no Xeon Phi available, exit
+if ! ssh -q mic0; then
+  echo -e "\x1B[1mError:\x1B[0m" \
+          "no Xeon Phi available! Cannot run experiments.";
+  exit 1;
+fi
+
+# Set the maximum number of cores (61 for Xeon Phi SE10P)
+P=61;
+
+# Scatter threads to separate cores
+export KMP_AFFINITY=granularity=fine,scatter;
+
+# Run the given number of replications, saving the output to 
+# fourier-parallel-pi-cpu-pthreads-results.csv
+echo "Running $T replications of pi-DFT on the Xeon Phi (up to $P cores)...";
+rm -f fourier-parallel-pi-xeonphi-openmp-results.csv;  
+touch fourier-parallel-pi-xeonphi-openmp-results.csv;
+for((t=1; t<=T; t=t+1)); do
+	for((n=n_from; n<=n_to; n=n*2)); do
+    for((p=p_from; p<=p_to; p=p*2)); do
+      if [ $p -le $P ]; then
+		    ./fourier-parallel-pi-xeonphi-openmp -n $n -p $p -o >> \
+          fourier-parallel-pi-xeonphi-openmp-results.csv;
+      fi
+    done
+	done
+  # If more than one replication, estimate the elapsed time so far
+  if [ $t -eq 1 ] && [ $T -gt 1 ]; then
+    awk -v T=$T \
+      '{s+=$3;}END{printf "  (Est. remaining time: ~%.1fs)\n", s/1000*(T-1);}'\
+      fourier-parallel-pi-xeonphi-openmp-results.csv;
+  fi
+done
+
+# Done!
+echo "Done. Results written to fourier-parallel-pi-xeonphi-openmp-results.csv";
+
+
+# -------------------
+# Analyze the results
+# -------------------
+
+# Notify the user
+echo "Analyzing results...";
+
+# Load R
+module load R;
+
+# Run the full analysis in R (deleting any old analyses first)
+rm -rf fourier-parallel-pi-xeonphi-openmp-results-analysis-n*.pdf;
+Rscript --vanilla analyze-results.R;
+
+
+# Done!

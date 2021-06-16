@@ -1,0 +1,39 @@
+CS 87 - Final Project
+Final Code Submission README
+Maria-Elena Solano
+
+
+1. To replicate the 1st experiment (pi-DFT on a GPU using CUDA):
+
+   a. Log in to carrot
+
+   b. Copy the folder:
+      benchmark/fourier/parallel/pi/gpu/cuda
+   
+   c. From the folder, run:
+      make replicate;
+
+   d. The results for selected values of n will be available in:
+      fourier-parallel-pi-gpu-cuda-results-analysis-n*.pdf
+
+      and the rest of the analysis will be available in:
+      fourier-parallel-pi-xeonphi-openmp-results-analysis.out
+
+
+2. To replicate the 2nd experiment (pi-DFT on a Xeon Phi using OpenMP):
+
+   a. Log in to XSEDE's stampede
+
+   b. Copy the folder:
+      benchmark/fourier/parallel/pi/xeonphi/openmp
+   
+   c. From the folder, run:
+      make replicate;
+
+      (Note it should only take a few minutes to dequeue.)
+
+   d. The results for selected values of n will be available in:
+      fourier-parallel-pi-xeonphi-openmp-results-analysis-n*.pdf
+
+      and the rest of the analysis will be available in:
+      fourier-parallel-pi-xeonphi-openmp-results-analysis.out

@@ -1,0 +1,90 @@
+#!/bin/bash
+
+# CS87 - Final Project
+# Maria-Elena Solano
+#
+# This PBS job script runs the experiments for pi-DFT on multicore CPU
+# and analyzes the results.
+# 
+# To enqueue, execute
+#
+#   qsub run-experiments-and-analyze-results -v DIR="$PWD";
+#
+
+# PBS directives
+
+#PBS -o fourier-parallel-pi-cpu-pthreads-results-analysis.out
+#PBS -j oe
+#PBS -l nodes=1:ppn=45
+#PBS -l walltime=05:00
+
+
+# -------------------
+# Run the experiments
+# -------------------
+
+# Experimental parameters
+T=2;                                   # number of replications
+n_from=8388608;   n_to=16777216;       # input size range
+p_from=1;         p_to=32;             # processors range (note: will change
+                                       #  to fit the actual machine)
+
+# If invalid number of replications, exit
+if [ $T -le 0 ]; then
+	echo "Invalid number of replications!";
+	exit;
+fi
+
+# Move to the original PWD
+cd $DIR;
+
+# Re-compile how-many-cpu-cores.c, and determine how many cores
+rm -rf how-many-cpu-cores how-many-cpu-cores.dSYM;
+gcc -Wall -g how-many-cpu-cores.c -o how-many-cpu-cores;
+P=$(./how-many-cpu-cores);
+if [ $P -le 32 ]; then
+  echo -e "\x1B[1mNote:\x1B[0m only $P cores available in this machine.";
+fi
+
+# Run the given number of replications, saving the output to 
+# fourier-parallel-pi-cpu-pthreads-results.csv
+echo "Running $T replications of pi-DFT on multicore CPU (up to $P cores)...";
+rm -f fourier-parallel-pi-cpu-pthreads-results.csv;  
+touch fourier-parallel-pi-cpu-pthreads-results.csv;
+for((t=1; t<=T; t=t+1)); do
+	for((n=n_from; n<=n_to; n=n*2)); do
+    for((p=p_from; p<=p_to; p=p*2)); do
+      if [ $p -le $P ]; then
+		    ./fourier-parallel-pi-cpu-pthreads -n $n -p $p -o >> \
+          fourier-parallel-pi-cpu-pthreads-results.csv;
+      fi
+    done
+	done
+  # If more than one replication, estimate the elapsed time so far
+  if [ $t -eq 1 ] && [ $T -gt 1 ]; then
+    awk -v T=$T \
+      '{s+=$3;}END{printf "  (Est. remaining time: ~%.1fs)\n", s/1000*(T-1);}'\
+      fourier-parallel-pi-cpu-pthreads-results.csv;
+  fi
+done
+
+# Done!
+echo "Done. Results written to fourier-parallel-pi-cpu-pthreads-results.csv";
+
+
+# -------------------
+# Analyze the results
+# -------------------
+
+# Notify the user
+echo "Analyzing results...";
+
+# Load R
+module load R;
+
+# Run the full analysis in R (deleting any old analyses first)
+rm -rf fourier-parallel-pi-cpu-pthreads-results-analysis-n*.pdf;
+Rscript --vanilla analyze-results.R;
+
+
+# Done!

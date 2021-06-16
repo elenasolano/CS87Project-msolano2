@@ -1,0 +1,51 @@
+#!/bin/bash
+
+# CS87 - Final Project
+# Maria-Elena Solano
+#
+# This bash script analyzes the results for the benchmark implementation of 
+# pi-DFT on carrot's GPU.
+# 
+# To run, execute
+#
+#   analyze-results;
+#
+
+# If no results file exists, notify the user and exit
+if [ ! -e fourier-parallel-pi-gpu-cuda-results.csv ]; then
+  echo -e "\x1B[1;31mError:\x1B[0m" \
+          "no results to analyze! Run experiments first.";
+  exit 1;
+fi
+
+# Notify the user
+echo "Analyzing results...";
+
+# If R is not installed, notify the user, and run a limited analysis using awk
+# (if available)
+if ! type Rscript >/dev/null 2>&1; then
+	if ! type awk >/dev/null 2>&1; then
+		echo "Could not run the analysis. (need either R or awk installed)";
+		exit 1;
+	fi
+	echo -e "\x1B[32;1mNote:\x1B[0m" \
+	        "R is not available! Limited analysis only.";
+	awk -f analyze-results.awk fourier-parallel-pi-gpu-cuda-results.csv \
+	     | sort -n -t 1;
+	exit;
+fi
+
+# Otherwise, run the full analysis in R (deleting any old analyses first)
+rm -rf fourier-parallel-pi-gpu-cuda-results-analysis-n*.pdf;
+Rscript --vanilla analyze-results.R;
+
+# Finally, try open the output files
+if [ "$(uname)" == "Darwin" ]; then
+  open fourier-parallel-pi-gpu-cuda-results-analysis-n*.pdf;
+else
+  if [ ! -z "$DISPLAY" ]; then
+    if type evince >/dev/null 2>&1; then
+      evince fourier-parallel-pi-gpu-cuda-results-analysis-n*.pdf;
+    fi
+  fi
+fi

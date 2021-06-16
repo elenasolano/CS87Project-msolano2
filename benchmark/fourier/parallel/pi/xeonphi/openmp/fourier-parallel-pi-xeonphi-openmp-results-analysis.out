@@ -1,0 +1,19 @@
+Pseudo-terminal will not be allocated because stdin is not a terminal.
+Running 256 replications of pi-DFT on the Xeon Phi (up to 61 cores)...
+  (Est. remaining time: ~1504.4s)
+Done. Results written to fourier-parallel-pi-xeonphi-openmp-results.csv
+Analyzing results...
+  Testing the hypothesis that the parallel time complexity follows the law
+  [Funnel stage] + [Tube stage] = Theta([n((p-1)/p)] + [(n/p)*log(n/p)])...
+    Yes: the time complexity of pi-DFT is Theta([n((p-1)/p)]+[(n/p)*log(n/p)])
+    (Fit significant at the alpha < 1.759045e-07 level.)
+  Testing the hypothesis that the 1st (funnel) stage is Theta(n((p-1)/p))...
+    Yes: the time complexity of the 1st stage of pi-DFT is Theta(n((p-1)/p)).
+    (Fit significant at the alpha < 1e-120 level.)
+  Testing the hypothesis that the 2nd (tube) stage is Theta((n/p)*log(n/p))...
+    Yes: the time complexity of the 2nd stage of pi-DFT is Theta((n/p)*log(n/p))
+    (Fit significant at the alpha < 1e-120 level.)
+Done. See also:
+  fourier-parallel-pi-xeonphi-openmp-results-analysis-n2048.pdf
+  fourier-parallel-pi-xeonphi-openmp-results-analysis-n8192.pdf
+  fourier-parallel-pi-xeonphi-openmp-results-analysis-n131072.pdf

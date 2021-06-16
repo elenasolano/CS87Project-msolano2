@@ -1,0 +1,76 @@
+#!/bin/bash
+
+# CS87 - Final Project
+# Maria-Elena Solano
+#
+# This bash script runs the experiments for the benchmark implementation of
+# pi-DFT on carrot's GPU using CUDA.
+# 
+# To run, execute
+#
+#   run-experiments [<number of iterations (default: 10)>];
+#
+
+# Experimental parameters
+T=${1:-10};                            # number of replications (default 10)
+n_from=1024;   n_to=8192;              # input size range
+p_from=1;      p_to=32;                # processors range (note: will change
+                                       #  to fit the actual machine)
+
+# If this host is not carrot, warn the user there might not be enough cores.
+if ! hostname | grep "carrot" >/dev/null 2>&1; then
+  echo -e "\x1B[1;32mNote:\x1B[0m" \
+          "this is not carrot!" \
+          "There might be less than 32 concurrent GPU blocks.";
+fi
+
+# If no executable, notify the user and exit
+if [ ! -e fourier-parallel-pi-gpu-cuda ]; then
+  echo -e "\x1B[1;31mError:\x1B[0m" \
+          "no executable! Re-compile first.";
+  exit 1;
+fi
+
+# If invalid number of replications, exit
+if [ $T -le 0 ]; then
+	echo "Invalid number of replications!";
+	exit 1;
+fi
+
+# Re-compile how-many-concurrent-blocks.cu, and determine how many blocks can
+# we run concurrently
+rm -rf how-many-concurrent-blocks how-many-concurrent-blocks.dSYM;
+nvcc -ccbin=/usr/bin/g++ -g -G how-many-concurrent-blocks.cu \
+  -o how-many-concurrent-blocks >/dev/null 2>&1;
+P=$(./how-many-concurrent-blocks);
+if [ $P -lt 32 ]; then
+  echo -e "\x1B[32;1mNote:\x1B[0m" \
+          "this GPU can only run up to $P concurrent blocks!";
+  ./how-many-concurrent-blocks -v;
+fi
+
+# Run the given number of replications, saving the output to 
+# fourier-parallel-pi-gpu-cuda-results.csv
+echo "Running $T replications of pi-DFT on the GPU" \
+     "(up to $P concurrent blocks)...";
+rm -f fourier-parallel-pi-gpu-cuda-results.csv;  
+touch fourier-parallel-pi-gpu-cuda-results.csv;
+for((t=1; t<=T; t=t+1)); do
+	for((n=n_from; n<=n_to; n=n*2)); do
+    for((p=p_from; p<=p_to; p=p*2)); do
+      if [ $p -le $P ]; then
+		    ./fourier-parallel-pi-gpu-cuda -n $n -p $p -o >> \
+          fourier-parallel-pi-gpu-cuda-results.csv;
+      fi
+    done
+	done
+  # If more than one replication, estimate the elapsed time so far
+  if [ $t -eq 1 ] && [ $T -gt 1 ]; then
+    awk -v T=$T \
+      '{s+=$3;}END{printf "  (Est. remaining time: ~%.1fs)\n", s/1000*(T-1);}'\
+      fourier-parallel-pi-gpu-cuda-results.csv;
+  fi
+done
+
+# Done!
+echo "Done. Results written to fourier-parallel-pi-gpu-cuda-results.csv";
